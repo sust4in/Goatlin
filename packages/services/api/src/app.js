@@ -1,5 +1,6 @@
 const createError = require('http-errors');
 const express = require('express');
+const fs = require('fs');
 const path = require('path');
 const logger = require('morgan');
 const database = require('./lib/database');
@@ -12,6 +13,18 @@ const app = express();
 
 app.use(logger('dev'));
 app.use(express.json());
+
+// VULN 3: Path Traversal — user-controlled filename with no sanitization
+// allows reading arbitrary files from the server (e.g. /etc/passwd)
+app.get('/files/:filename', (req, res) => {
+    const filePath = path.join(__dirname, 'uploads', req.params.filename);
+    fs.readFile(filePath, 'utf8', (err, data) => {
+        if (err) {
+            return res.status(404).json({ error: 'File not found', path: filePath });
+        }
+        res.status(200).send(data);
+    });
+});
 
 app.use('/', indexRouter);
 app.use('/', accountsRouter);
